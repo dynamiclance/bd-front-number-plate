@@ -77,6 +77,24 @@ body{background:rgb(var(--bg));color:rgb(var(--ink))}
 [x-cloak]{display:none!important}
 @keyframes cd-tick{from{transform:translateY(-35%);opacity:0}to{transform:none;opacity:1}}
 .cd-tick{animation:cd-tick .35s cubic-bezier(.2,.8,.2,1)}
+/* Download buttons: lift, fill and shine on hover; press-in on tap */
+.dl-btn{position:relative;overflow:hidden;isolation:isolate;transition:transform .18s ease,box-shadow .18s ease,background-color .2s ease,color .2s ease,border-color .2s ease}
+.dl-btn::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 35%,rgb(var(--accent)/.35) 50%,transparent 65%);transform:translateX(-110%);transition:transform .7s ease}
+.dl-btn .ic{display:inline-block;transition:transform .25s ease}
+.dl-btn:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 10px 20px -12px rgb(var(--ink)/.6)}
+.dl-btn:not(:disabled):hover::after{transform:translateX(110%)}
+.dl-btn:not(:disabled):hover .ic{animation:dl-nudge .9s ease-in-out infinite}
+.dl-btn:not(:disabled):active{transform:translateY(0) scale(.97);box-shadow:none}
+.dl-outline:not(:disabled):hover{background:rgb(var(--ink));color:rgb(var(--bg))}
+.dl-primary:not(:disabled):hover{background:rgb(var(--ink)/.92)}
+@keyframes dl-nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+@keyframes dl-pop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+.dl-pop{animation:dl-pop .35s ease-out}
+@keyframes sheet-fade{from{opacity:0}}
+@keyframes sheet-up{from{transform:translateY(32px);opacity:0}}
+.sheet-fade{animation:sheet-fade .2s ease-out}
+.sheet-up{animation:sheet-up .28s cubic-bezier(.2,.8,.2,1)}
+@media (hover:none){.dl-btn:not(:disabled):hover{transform:none;box-shadow:none}.dl-btn:not(:disabled):hover .ic{animation:none}.dl-outline:not(:disabled):hover{background:transparent;color:inherit}}
 .bench-grid{background-image:linear-gradient(rgb(var(--ink)/.05) 1px,transparent 1px),linear-gradient(90deg,rgb(var(--ink)/.05) 1px,transparent 1px);background-size:20px 20px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -265,17 +283,24 @@ body{background:rgb(var(--bg));color:rgb(var(--ink))}
 
         <section aria-labelledby="h-dl" class="bg-surface border border-line rounded-md p-4 sm:p-5 min-w-0">
           <h2 id="h-dl" class="text-xs tracking-[.08em] uppercase text-muted font-semibold mb-3">ডাউনলোড</h2>
+          <div x-show="inApp" x-cloak class="mb-3 text-[13px] leading-snug rounded bg-accent/15 border border-accent/40 p-3">
+            Facebook বা Messenger-এর ভেতরের ব্রাউজারে ডাউনলোড বন্ধ থাকে। উপরের <b>⋮</b> বা <b>•••</b> মেনু থেকে <b>Open in Chrome / Safari</b> চাপুন।
+          </div>
           <div class="grid gap-2.5">
-            <button type="button" @click="dlPdf()" :disabled="!ok" class="btn btn-primary w-full flex items-center justify-between gap-3 min-h-[48px] px-4 rounded font-semibold bg-ink text-bg border border-ink hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
-              PDF, আসল মাপে <small class="font-mono text-[11px] font-normal opacity-80">১০০% স্কেলে প্রিন্ট</small>
+            <button type="button" @click="run('pdf')" :disabled="!ok || !!busy" :aria-busy="busy === 'pdf'"
+              class="dl-btn dl-primary w-full flex items-center gap-3 min-h-[52px] px-4 rounded-md font-semibold bg-ink text-bg border border-ink disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
+              <span class="ic w-5 h-5 shrink-0" x-html="icon('pdf')"></span>
+              <span class="flex-1 text-left">PDF, আসল মাপে</span>
+              <small class="font-mono text-[11px] font-normal opacity-80">১০০% স্কেলে প্রিন্ট</small>
             </button>
             <div class="grid grid-cols-2 gap-2.5">
-              <button type="button" @click="dlJpg()" :disabled="!ok" class="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-0.5 xs:gap-2 min-h-[48px] px-3 py-2 rounded font-semibold border border-ink hover:bg-line/40 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                JPG <small class="font-mono text-[11px] font-normal opacity-80">৩০০ DPI</small>
-              </button>
-              <button type="button" @click="dlPng()" :disabled="!ok" class="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-0.5 xs:gap-2 min-h-[48px] px-3 py-2 rounded font-semibold border border-ink hover:bg-line/40 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                PNG <small class="font-mono text-[11px] font-normal opacity-80">৩০০ DPI</small>
-              </button>
+              <template x-for="k in ['jpg','png']" :key="k">
+                <button type="button" @click="run(k)" :disabled="!ok || !!busy" :aria-busy="busy === k"
+                  class="dl-btn dl-outline flex items-center gap-2 min-h-[52px] px-3 py-2 rounded-md font-semibold border border-ink disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  <span class="ic w-5 h-5 shrink-0" x-html="icon(k)"></span>
+                  <span class="flex-1 text-left leading-tight"><span x-text="k.toUpperCase()"></span><small class="block font-mono text-[10px] font-normal opacity-75">৩০০ DPI</small></span>
+                </button>
+              </template>
             </div>
             <div class="flex flex-wrap items-center gap-2 pt-1">
               <label for="copies" class="text-sm">A4 শিটে কপি:</label>
@@ -283,10 +308,17 @@ body{background:rgb(var(--bg));color:rgb(var(--ink))}
                 <template x-for="n in SPEC[vt].perA4" :key="vt + n"><option :value="n" x-text="toBn(n) + ' কপি'" :selected="n === copies"></option></template>
               </select>
             </div>
-            <button type="button" @click="dlA4()" :disabled="!ok" class="w-full flex items-center justify-between gap-3 min-h-[48px] px-4 rounded font-semibold border border-ink hover:bg-line/40 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-              A4 প্রিন্ট শিট (PDF) <small class="font-mono text-[11px] font-normal opacity-80">কাটার দাগসহ</small>
+            <button type="button" @click="run('a4')" :disabled="!ok || !!busy" :aria-busy="busy === 'a4'"
+              class="dl-btn dl-outline w-full flex items-center gap-3 min-h-[52px] px-4 rounded-md font-semibold border border-ink disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              <span class="ic w-5 h-5 shrink-0" x-html="icon('a4')"></span>
+              <span class="flex-1 text-left">A4 প্রিন্ট শিট (PDF)</span>
+              <small class="font-mono text-[11px] font-normal opacity-80">কাটার দাগসহ</small>
             </button>
-            <p class="text-sm text-muted min-h-[1.4em]" aria-live="polite" x-text="status"></p>
+            <div class="text-sm text-muted min-h-[1.4em]" aria-live="polite">
+              <span x-text="status"></span>
+              <button type="button" x-show="last && !busy" x-cloak @click="openSheet(last.name, last.blob, last.kind)"
+                class="ml-1 font-semibold text-ink underline decoration-accent decoration-2 underline-offset-4 hover:text-accent transition-colors">ডাউনলোড না হলে এখানে চাপুন</button>
+            </div>
           </div>
         </section>
       </div>
@@ -316,9 +348,43 @@ body{background:rgb(var(--bg));color:rgb(var(--ink))}
 
   <!-- Mobile action bar -->
   <div class="md:hidden fixed inset-x-0 bottom-0 z-30 bg-surface/95 backdrop-blur border-t border-line px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom,0px))]">
-    <div class="mx-auto max-w-xl grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-      <button type="button" @click="dlPdf()" :disabled="!ok" class="min-h-[48px] rounded font-semibold bg-ink text-bg disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">PDF ডাউনলোড</button>
-      <button type="button" @click="dlJpg()" :disabled="!ok" class="min-h-[48px] px-5 rounded font-semibold border border-ink disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">JPG</button>
+    <div class="mx-auto max-w-xl grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+      <button type="button" @click="run('pdf')" :disabled="!ok || !!busy" class="dl-btn dl-primary flex items-center justify-center gap-2 min-h-[48px] rounded-md font-semibold bg-ink text-bg border border-ink disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        <span class="ic w-5 h-5 shrink-0" x-html="icon('pdf')"></span>PDF
+      </button>
+      <template x-for="k in ['jpg','png']" :key="'m' + k">
+        <button type="button" @click="run(k)" :disabled="!ok || !!busy" class="dl-btn dl-outline flex items-center justify-center gap-1.5 min-h-[48px] rounded-md font-semibold border border-ink disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+          <span class="ic w-[18px] h-[18px] shrink-0" x-html="icon(k)"></span><span x-text="k.toUpperCase()"></span>
+        </button>
+      </template>
+    </div>
+  </div>
+
+  <!-- Save sheet: fallback for browsers that block downloads -->
+  <div x-show="sheet.open" x-cloak @keydown.escape.window="closeSheet()" @click.self="closeSheet()"
+       class="sheet-fade fixed inset-0 z-50 bg-black/55 grid items-end sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-up w-full sm:max-w-md bg-surface text-ink rounded-t-2xl sm:rounded-xl p-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] grid gap-3 max-h-[92vh] overflow-y-auto shadow-2xl">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 id="sheet-title" class="font-bold text-lg leading-tight">ফাইল সেভ করুন</h3>
+          <p class="font-mono text-xs text-muted break-all mt-0.5" x-text="sheet.name"></p>
+        </div>
+        <button type="button" @click="closeSheet()" aria-label="বন্ধ করুন" class="shrink-0 w-10 h-10 grid place-items-center rounded-full hover:bg-line/50 transition-colors text-xl leading-none">×</button>
+      </div>
+      <template x-if="sheet.isImg">
+        <img :src="sheet.url" alt="নম্বর প্লেটের ছবি" class="w-full rounded border border-line bg-white">
+      </template>
+      <p x-show="sheet.isImg" class="text-sm">ছবির উপর আঙুল চেপে ধরে <b>Save image / ছবি সেভ করুন</b> চাপুন।</p>
+      <button type="button" x-show="sheet.canShare" @click="shareFile()" class="dl-btn dl-primary flex items-center justify-center gap-2 min-h-[48px] rounded-md font-semibold bg-ink text-bg border border-ink">
+        শেয়ার মেনু থেকে সেভ করুন
+      </button>
+      <button type="button" @click="retryDownload()" class="dl-btn dl-outline flex items-center justify-center gap-2 min-h-[48px] rounded-md font-semibold border border-ink">
+        <span class="ic w-5 h-5" x-html="ICONS.arrow"></span>আবার ডাউনলোড করুন
+      </button>
+      <div x-show="inApp" class="text-sm rounded bg-accent/15 border border-accent/40 p-3 grid gap-2">
+        <p>Facebook বা Messenger-এর ভেতরের ব্রাউজারে ডাউনলোড বন্ধ থাকে। উপরের <b>⋮</b> বা <b>•••</b> মেনু থেকে <b>Open in Chrome / Safari</b> চাপুন, তারপর আবার ডাউনলোড করুন।</p>
+        <button type="button" @click="copyLink()" class="justify-self-start font-semibold underline decoration-accent decoration-2 underline-offset-4" x-text="copied ? 'লিংক কপি হয়েছে' : 'এই পেজের লিংক কপি করুন'"></button>
+      </div>
     </div>
   </div>
 </div>
@@ -462,61 +528,108 @@ function plateApp() {
     },
 
     // ---------- downloads ----------
+    ICONS: {
+      arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-full h-full"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>',
+      spin: '<svg viewBox="0 0 24 24" fill="none" class="w-full h-full animate-spin"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>',
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="w-full h-full dl-pop"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>'
+    },
+    busy: "", done: "", last: null, copied: false,
+    sheet: { open: false, name: "", url: "", isImg: false, canShare: false, file: null },
+    inApp: /FBAN|FBAV|FB_IAB|FBIOS|Messenger|Instagram|Line\/|MicroMessenger|Snapchat|musical_ly|; wv\)/i.test(navigator.userAgent),
+    canDownload: "download" in HTMLAnchorElement.prototype,
+
+    icon(k) { return this.busy === k ? this.ICONS.spin : this.done === k ? this.ICONS.check : this.ICONS.arrow; },
+
     fresh() {
       const s = this.snap(); const [family, weight] = s.font.split("|");
       const cv = document.createElement("canvas");
       renderPlate(cv, this.SPEC[s.vt], { family, weight, frame: parseFloat(s.frame), holes: s.holes }, this.lines);
       return cv;
     },
+    // ASCII-only names: some phone browsers drop non-Latin names and fall back to the page name
     baseName() {
-      return "front-plate-" + toEn(this.lines.join("-")).replace(/[^\wঀ-৿-]+/g, "").replace(/-+/g, "-").slice(0, 60);
+      const num = digits(this.lines.join("")).slice(-6) || "plate";
+      return `bd-front-plate-${this.vt === "moto" ? "motorcycle" : "scooter"}-${num}`;
     },
-    async save(filename, blob) {
-      if (this.dlCap) {
-        try { await this.dlCap.save({ filename, data: blob }); this.status = `${filename} সেভ হয়েছে।`; }
-        catch (e) { this.status = e?.code === "declined" ? "ডাউনলোড বাতিল করা হয়েছে।" : "এখানে ডাউনলোড করা গেল না।"; }
-        return;
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-      this.status = `${filename} ডাউনলোড শুরু হয়েছে।`;
+
+    async run(kind) {
+      if (this.busy || !this.ok) return;
+      this.busy = kind; this.done = ""; this.last = null; this.status = "ফাইল তৈরি হচ্ছে…";
+      // Let the spinner paint, then build synchronously so the click still counts as the user's action
+      await new Promise(r => { requestAnimationFrame(() => requestAnimationFrame(r)); setTimeout(r, 60); });
+      let out;
+      try { out = this.build(kind); }
+      catch (e) { this.busy = ""; this.status = "ফাইল তৈরি করা গেল না। আবার চেষ্টা করুন।"; return; }
+      await this.deliver(out.name, out.blob, kind);
+      this.busy = "";
     },
-    async dlJpg() { this.save(this.baseName() + ".jpg", await jpg300(this.fresh())); },
-    async dlPng() { this.save(this.baseName() + ".png", await png300(this.fresh())); },
-    dlPdf() {
-      const sp = this.SPEC[this.vt];
-      const doc = new jspdf.jsPDF({ unit: "mm", format: [sp.w, sp.h], orientation: sp.w > sp.h ? "landscape" : "portrait" });
-      doc.addImage(this.fresh().toDataURL("image/png"), "PNG", 0, 0, sp.w, sp.h);
-      this.save(this.baseName() + ".pdf", doc.output("blob"));
-    },
-    dlA4() {
-      const sp = this.SPEC[this.vt], n = this.copies;
-      const doc = new jspdf.jsPDF({ unit: "mm", format: "a4" });
+
+    build(kind) {
+      const base = this.baseName(), sp = this.SPEC[this.vt];
+      if (kind === "jpg") return { name: base + ".jpg", blob: jpg300(this.fresh()) };
+      if (kind === "png") return { name: base + ".png", blob: png300(this.fresh()) };
       const img = this.fresh().toDataURL("image/png");
-      const gap = 18, totalH = n * sp.h + (n - 1) * gap, x = (210 - sp.w) / 2;
-      let y = Math.max(20, (297 - totalH) / 2);
+      if (kind === "pdf") {
+        const doc = new jspdf.jsPDF({ unit: "mm", format: [sp.w, sp.h], orientation: sp.w > sp.h ? "landscape" : "portrait", compress: true });
+        doc.addImage(img, "PNG", 0, 0, sp.w, sp.h, "plate", "FAST");
+        return { name: base + ".pdf", blob: pdfBlob(doc) };
+      }
+      // A4 sheet; 285 mm is wider than A4 portrait, so motorcycle plates go one per landscape page
+      const n = this.copies;
+      const doc = new jspdf.jsPDF({ unit: "mm", format: "a4", orientation: sp.w > 200 ? "landscape" : "portrait", compress: true });
       doc.setFontSize(8); doc.setTextColor(90);
-      doc.text(`${sp.w} x ${sp.h} mm  |  Print at 100% scale (Actual size), do not fit to page`, 105, 12, { align: "center" });
-      // 285 mm is wider than A4 portrait: place motorcycle plates on landscape pages instead
       if (sp.w > 200) {
-        doc.deletePage(1);
         for (let i = 0; i < n; i++) {
-          doc.addPage("a4", "landscape");
+          if (i) doc.addPage("a4", "landscape");
           doc.setFontSize(8); doc.setTextColor(90);
           doc.text(`${sp.w} x ${sp.h} mm  |  Print at 100% scale (Actual size)`, 148.5, 12, { align: "center" });
           cropPlate(doc, img, (297 - sp.w) / 2, (210 - sp.h) / 2, sp);
         }
       } else {
+        const gap = 18, totalH = n * sp.h + (n - 1) * gap, x = (210 - sp.w) / 2;
+        let y = Math.max(20, (297 - totalH) / 2);
+        doc.text(`${sp.w} x ${sp.h} mm  |  Print at 100% scale (Actual size), do not fit to page`, 105, 12, { align: "center" });
         for (let i = 0; i < n; i++) { cropPlate(doc, img, x, y, sp); y += sp.h + gap; }
       }
-      this.save(this.baseName() + "-A4.pdf", doc.output("blob"));
+      return { name: base + "-A4.pdf", blob: pdfBlob(doc) };
+    },
+
+    flash(kind) { this.done = kind; setTimeout(() => { if (this.done === kind) this.done = ""; }, 2200); },
+
+    async deliver(name, blob, kind) {
+      if (this.dlCap) {
+        try { await this.dlCap.save({ filename: name, data: blob }); this.status = `${name} সেভ হয়েছে।`; this.flash(kind); }
+        catch (e) { this.status = e?.code === "declined" ? "ডাউনলোড বাতিল করা হয়েছে।" : "এখানে ডাউনলোড করা গেল না।"; }
+        return;
+      }
+      if (this.inApp || !this.canDownload) { this.openSheet(name, blob, kind); this.status = ""; return; }
+      triggerDownload(blob, name);
+      this.last = { name, blob, kind };
+      this.status = `${name} ডাউনলোড হচ্ছে।`;
+      this.flash(kind);
+    },
+
+    openSheet(name, blob, kind) {
+      if (this.sheet.url) URL.revokeObjectURL(this.sheet.url);
+      const file = new File([blob], name, { type: blob.type });
+      let canShare = false;
+      try { canShare = !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) {}
+      this.sheet = { open: true, name, url: URL.createObjectURL(blob), isImg: kind === "jpg" || kind === "png", canShare, file };
+    },
+    closeSheet() { this.sheet.open = false; },
+    async shareFile() {
+      try { await navigator.share({ files: [this.sheet.file], title: this.sheet.name }); } catch (e) {}
+    },
+    retryDownload() { triggerDownload(this.sheet.file, this.sheet.name); },
+    async copyLink() {
+      try { await navigator.clipboard.writeText(location.href.split("#")[0]); this.copied = true; setTimeout(() => this.copied = false, 2500); }
+      catch (e) { this.status = location.href.split("#")[0]; }
     }
   };
 }
 
 function cropPlate(doc, img, x, y, sp) {
-  doc.addImage(img, "PNG", x, y, sp.w, sp.h);
+  doc.addImage(img, "PNG", x, y, sp.w, sp.h, "plate", "FAST"); // same alias: image stored once
   doc.setDrawColor(120); doc.setLineWidth(0.2);
   const L = 5, o = 2, x2 = x + sp.w, y2 = y + sp.h;
   [[x, y, -1, -1], [x2, y, 1, -1], [x, y2, -1, 1], [x2, y2, 1, 1]].forEach(([cx, cy, sx, sy]) => {
@@ -570,14 +683,27 @@ function renderPlate(cv, sp, o, L) {
   return { digitMM: (dm.actualBoundingBoxAscent + dm.actualBoundingBoxDescent) / MM, condense: sx, W, H };
 }
 
-const toBlob = (cv, type, q) => new Promise(r => cv.toBlob(r, type, q));
-async function jpg300(cv) {
-  const u = new Uint8Array(await (await toBlob(cv, "image/jpeg", 0.95)).arrayBuffer());
+// Start a real file download; keep the blob URL alive long enough for slow mobile download prompts
+function triggerDownload(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.rel = "noopener"; a.style.display = "none";
+  document.body.append(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 120000);
+}
+const pdfBlob = doc => new Blob([doc.output("arraybuffer")], { type: "application/pdf" });
+function dataUrlBytes(d) {
+  const b = atob(d.slice(d.indexOf(",") + 1)), u = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u;
+}
+function jpg300(cv) {
+  const u = dataUrlBytes(cv.toDataURL("image/jpeg", 0.95));
   if (u[2] === 0xFF && u[3] === 0xE0 && u[6] === 0x4A) { u[13] = 1; u[14] = 1; u[15] = 44; u[16] = 1; u[17] = 44; } // JFIF 300 DPI
   return new Blob([u], { type: "image/jpeg" });
 }
-async function png300(cv) {
-  const u = new Uint8Array(await (await toBlob(cv, "image/png")).arrayBuffer());
+function png300(cv) {
+  const u = dataUrlBytes(cv.toDataURL("image/png"));
   const ppm = Math.round(DPI / 0.0254);
   const data = new Uint8Array(9), dv = new DataView(data.buffer);
   dv.setUint32(0, ppm); dv.setUint32(4, ppm); data[8] = 1;
