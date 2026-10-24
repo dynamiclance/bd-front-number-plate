@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>সামনের নম্বর প্লেট মেকার</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@700;800&family=Baloo+Da+2:wght@700;800&family=Anek+Bangla:wght@800&family=Noto+Serif+Bengali:wght@800&family=Tiro+Bangla&family=Mina:wght@700&family=Atma:wght@700&family=Galada&family=IBM+Plex+Mono:wght@500&display=swap">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  tailwind.config = {
+    darkMode: ["selector", '[data-theme="dark"]'],
+    theme: {
+      extend: {
+        colors: {
+          bg: "rgb(var(--bg) / <alpha-value>)",
+          surface: "rgb(var(--surface) / <alpha-value>)",
+          bench: "rgb(var(--bench) / <alpha-value>)",
+          ink: "rgb(var(--ink) / <alpha-value>)",
+          muted: "rgb(var(--muted) / <alpha-value>)",
+          line: "rgb(var(--line) / <alpha-value>)",
+          accent: "rgb(var(--accent) / <alpha-value>)",
+          "accent-ink": "rgb(var(--accent-ink) / <alpha-value>)",
+          ok: "rgb(var(--ok) / <alpha-value>)",
+          warn: "rgb(var(--warn) / <alpha-value>)",
+          bad: "rgb(var(--bad) / <alpha-value>)"
+        },
+        fontFamily: {
+          ui: ['"Hind Siliguri"', '"Noto Sans Bengali"', "system-ui", "sans-serif"],
+          mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"]
+        },
+        screens: { xs: "400px", "3xl": "1800px" }
+      }
+    }
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.14.1/cdn.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* Layout: sign-shop workbench. Mobile: plate pinned on top, form below, action bar fixed at the bottom.
+   Tablet/desktop: form left, sticky plate + checks + downloads right. Tokens are RGB triplets for Tailwind alpha. */
+:root{
+  --bg:238 240 238; --surface:255 255 255; --bench:217 221 217; --ink:20 24 21; --muted:91 98 93; --line:201 206 201;
+  --accent:226 164 0; --accent-ink:29 22 0; --ok:31 122 69; --warn:180 86 11; --bad:179 38 30;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:18 21 19; --surface:27 31 28; --bench:37 42 38; --ink:233 236 233; --muted:154 162 156; --line:52 58 53;
+  --accent:240 181 28; --accent-ink:29 22 0; --ok:76 194 126; --warn:240 149 74; --bad:255 123 114; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:18 21 19; --surface:27 31 28; --bench:37 42 38; --ink:233 236 233; --muted:154 162 156; --line:52 58 53;
+  --accent:240 181 28; --accent-ink:29 22 0; --ok:76 194 126; --warn:240 149 74; --bad:255 123 114; color-scheme:dark}
+html{-webkit-text-size-adjust:100%}
+body{background:rgb(var(--bg));color:rgb(var(--ink))}
+[x-cloak]{display:none!important}
+.bench-grid{background-image:linear-gradient(rgb(var(--ink)/.05) 1px,transparent 1px),linear-gradient(90deg,rgb(var(--ink)/.05) 1px,transparent 1px);background-size:20px 20px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div x-data="plateApp()" x-init="init()" class="font-ui text-[15px] sm:text-base leading-relaxed min-h-full">
+
+  <!-- Header -->
+  <header class="border-b-2 border-ink">
+    <div class="mx-auto max-w-7xl 3xl:max-w-[1600px] px-4 sm:px-6 lg:px-8 py-3 sm:py-5 flex flex-wrap items-center justify-between gap-3">
+      <div class="min-w-0">
+        <h1 class="text-xl xs:text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight [text-wrap:balance]">সামনের নম্বর প্লেট মেকার</h1>
+        <p class="hidden sm:block text-sm text-muted mt-1">মোটরসাইকেল ও স্কুটারের ফ্রন্ট প্লেট, বিআরটিএ-র অক্টোবর ২০২৬ গণবিজ্ঞপ্তির মাপ অনুযায়ী</p>
+      </div>
+      <div class="flex items-center gap-2.5 bg-accent text-accent-ink rounded px-3 py-1.5 sm:py-2" role="status">
+        <b class="text-2xl sm:text-3xl leading-none tabular-nums" x-text="days">–</b>
+        <span class="text-[11px] sm:text-xs font-semibold leading-tight">দিন বাকি<br>শেষ সময় ১৫ নভেম্বর</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl 3xl:max-w-[1600px] px-4 sm:px-6 lg:px-8 pt-0 md:pt-6 pb-6 md:pb-10
+               grid gap-5 md:gap-6 lg:gap-8 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:grid-cols-[minmax(0,370px)_minmax(0,1fr)] items-start">
+
+    <!-- Preview: pinned on phones, sticky column on larger screens -->
+    <section aria-labelledby="h-prev"
+      class="order-first md:order-last md:col-start-2 md:row-start-1 sticky top-[env(safe-area-inset-top,0px)] z-20
+             -mx-4 sm:-mx-6 md:mx-0 md:-mt-6 bg-bg pt-3 pb-3 md:pt-6 md:pb-4 px-4 sm:px-6 md:px-0
+             border-b border-line shadow-[0_8px_12px_-12px_rgba(0,0,0,.35)] min-w-0">
+      <div class="flex items-baseline justify-between gap-3 mb-2">
+        <h2 id="h-prev" class="text-[11px] sm:text-xs tracking-[.08em] uppercase text-muted font-semibold">প্রিভিউ · আসল অনুপাত</h2>
+        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+              :class="ok ? 'bg-ok/15 text-ok' : 'bg-bad/15 text-bad'" x-text="ok ? 'নিয়ম মিলছে' : 'সংশোধন দরকার'"></span>
+      </div>
+      <div class="bench-grid bg-bench rounded-md p-3 xs:p-4 sm:p-8 lg:p-10 grid place-items-center"
+           :class="vt === 'scooter' ? 'min-h-[150px] sm:min-h-[260px]' : 'min-h-[90px] sm:min-h-[200px]'">
+        <canvas x-ref="plate" width="3366" height="591" aria-label="নম্বর প্লেটের প্রিভিউ"
+          class="block h-auto max-w-full rounded-[3px] bg-white shadow-[0_1px_0_rgba(0,0,0,.25),0_12px_24px_-12px_rgba(0,0,0,.5)]"
+          :class="vt === 'scooter' ? 'w-[min(100%,360px)] sm:w-[min(100%,420px)]' : 'w-full'"></canvas>
+      </div>
+      <div class="hidden xs:flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] sm:text-xs text-muted mt-2 tabular-nums">
+        <template x-for="m in meta" :key="m"><span x-text="m"></span></template>
+      </div>
+    </section>
+
+    <!-- Form -->
+    <section aria-labelledby="h-in" class="md:row-span-2 md:row-start-1 md:col-start-1 bg-surface border border-line rounded-md p-4 sm:p-5 min-w-0">
+      <h2 id="h-in" class="text-xs tracking-[.08em] uppercase text-muted font-semibold mb-4">রেজিস্ট্রেশন তথ্য</h2>
+      <form @submit.prevent class="grid gap-4" autocomplete="off">
+
+        <fieldset class="grid gap-1.5">
+          <legend class="font-semibold text-sm mb-1.5">যানবাহনের ধরন</legend>
+          <div class="grid grid-cols-2 border border-line rounded overflow-hidden">
+            <template x-for="o in [{v:'moto',t:'মোটরসাইকেল',s:'২৮৫ × ৫০ মিমি'},{v:'scooter',t:'স্কুটার',s:'২০০ × ১০০ মিমি'}]" :key="o.v">
+              <label class="relative cursor-pointer text-center px-2 py-2.5 min-h-[48px] font-semibold text-sm border-l first:border-l-0 border-line transition-colors focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset"
+                     :class="vt === o.v ? 'bg-ink text-bg' : 'bg-bg hover:bg-line/40'">
+                <input type="radio" name="vt" :id="'vt-' + o.v" :value="o.v" x-model="vt" class="sr-only">
+                <span x-text="o.t"></span>
+                <small class="block font-normal text-[11px] opacity-75" x-text="o.s"></small>
+              </label>
+            </template>
+          </div>
+        </fieldset>
+
+        <fieldset class="grid gap-1.5">
+          <legend class="font-semibold text-sm mb-1.5">ইনপুট পদ্ধতি</legend>
+          <div class="grid grid-cols-2 border border-line rounded overflow-hidden">
+            <template x-for="o in [{v:'struct',t:'ফর্ম থেকে'},{v:'custom',t:'নিজে লিখুন'}]" :key="o.v">
+              <label class="cursor-pointer text-center px-2 py-2.5 min-h-[44px] font-semibold text-sm border-l first:border-l-0 border-line transition-colors focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset"
+                     :class="mode === o.v ? 'bg-ink text-bg' : 'bg-bg hover:bg-line/40'">
+                <input type="radio" name="mode" :id="'md-' + o.v" :value="o.v" x-model="mode" class="sr-only">
+                <span x-text="o.t"></span>
+              </label>
+            </template>
+          </div>
+        </fieldset>
+
+        <div x-show="mode === 'struct'" class="grid gap-4">
+          <div class="grid gap-1.5">
+            <label for="district" class="font-semibold text-sm">জেলা / মেট্রো</label>
+            <select id="district" x-model="district" class="w-full min-h-[44px] text-base px-3 py-2 bg-bg border border-line rounded focus:outline-none focus:ring-2 focus:ring-accent">
+              <optgroup label="মেট্রো এলাকা">
+                <template x-for="d in METRO" :key="d"><option :value="d" x-text="d" :selected="d === district"></option></template>
+              </optgroup>
+              <template x-for="(list, div) in DIVS" :key="div">
+                <optgroup :label="div">
+                  <template x-for="d in list" :key="d"><option :value="d" x-text="d" :selected="d === district"></option></template>
+                </optgroup>
+              </template>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="grid gap-1.5 min-w-0">
+              <label for="cls" class="font-semibold text-sm">শ্রেণি অক্ষর</label>
+              <select id="cls" x-model="cls" class="w-full min-h-[44px] text-base px-3 py-2 bg-bg border border-line rounded focus:outline-none focus:ring-2 focus:ring-accent">
+                <optgroup label="মোটরসাইকেল"><template x-for="c in BIKE_CLS" :key="c"><option :value="c" x-text="c" :selected="c === cls"></option></template></optgroup>
+                <optgroup label="অন্যান্য"><template x-for="c in OTHER_CLS" :key="c"><option :value="c" x-text="c" :selected="c === cls"></option></template></optgroup>
+              </select>
+            </div>
+            <div class="grid gap-1.5 min-w-0">
+              <label for="series" class="font-semibold text-sm">সিরিজ <span class="font-normal text-muted">(২ অঙ্ক)</span></label>
+              <input id="series" type="text" inputmode="numeric" maxlength="2" x-model="series" @blur="series = toBn(digits(series))"
+                     class="w-full min-h-[44px] text-base px-3 py-2 bg-bg border border-line rounded focus:outline-none focus:ring-2 focus:ring-accent tabular-nums">
+            </div>
+          </div>
+          <div class="grid gap-1.5">
+            <label for="num" class="font-semibold text-sm">নম্বর <span class="font-normal text-muted">(৪ অঙ্ক)</span></label>
+            <input id="num" type="text" inputmode="numeric" maxlength="4" x-model="num" @blur="num = toBn(digits(num))"
+                   class="w-full min-h-[44px] text-base px-3 py-2 bg-bg border border-line rounded focus:outline-none focus:ring-2 focus:ring-accent tabular-nums">
+            <p class="text-xs text-muted">ইংরেজি অঙ্ক লিখলে বাংলায় বদলে যাবে।</p>
+          </div>
+        </div>
+
+        <div x-show="mode === 'custom'" x-cloak class="grid gap-1.5">
+          <label for="custom" class="font-semibold text-sm">রেজিস্ট্রেশন নম্বর</label>
+          <input id="custom" type="text" x-model="custom"
+                 class="w-full min-h-[44px] text-base px-3 py-2 bg-bg border border-line rounded focus:outline-none focus:ring-2 focus:ring-accent">
+          <p class="text-xs text-muted">স্কুটারে দুই লাইন আলাদা করতে <b>/</b> দিন, যেমন: ঢাকা মেট্রো-ল / ১১-১২২৯</p>
+        </div>
+
+        <fieldset class="grid gap-1.5">
+          <legend class="font-semibold text-sm mb-1.5">অক্ষরের ফন্ট</legend>
+          <div class="grid grid-cols-2 xs:grid-cols-3 md:grid-cols-2 gap-2">
+            <template x-for="f in FONTS" :key="f.v">
+              <label class="relative cursor-pointer rounded border px-2.5 py-2 min-h-[56px] grid content-center gap-0.5 transition-colors focus-within:ring-2 focus-within:ring-accent"
+                     :class="font === f.v ? 'border-ink bg-ink text-bg' : 'border-line bg-bg hover:bg-line/40'">
+                <input type="radio" name="font" :id="'font-' + f.id" :value="f.v" x-model="font" class="sr-only">
+                <span class="text-lg leading-tight truncate" :style="`font-family:'${f.v.split('|')[0]}',sans-serif;font-weight:${f.v.split('|')[1]}`">ঢাকা ১২৩৪</span>
+                <small class="text-[11px] opacity-75 truncate" x-text="f.t"></small>
+              </label>
+            </template>
+          </div>
+          <p class="text-xs text-muted">প্লেটে পরিষ্কার পড়া যায় এমন মোটা ফন্ট বেছে নিন। হাতের লেখার মতো ফন্ট দূর থেকে পড়া কঠিন।</p>
+        </fieldset>
+
+        <fieldset class="grid gap-1.5">
+          <legend class="font-semibold text-sm mb-1.5">কালো বর্ডার</legend>
+          <div class="grid grid-cols-4 border border-line rounded overflow-hidden">
+            <template x-for="o in [{v:'0',t:'নেই',s:''},{v:'0.5',t:'পাতলা',s:'০.৫'},{v:'1.5',t:'মাঝারি',s:'১.৫'},{v:'4',t:'মোটা',s:'৪'}]" :key="o.v">
+              <label class="cursor-pointer text-center px-1 py-2 min-h-[48px] font-semibold text-[13px] xs:text-sm border-l first:border-l-0 border-line transition-colors focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset"
+                     :class="frame === o.v ? 'bg-ink text-bg' : 'bg-bg hover:bg-line/40'">
+                <input type="radio" name="fr" :id="'fr-' + o.v" :value="o.v" x-model="frame" class="sr-only">
+                <span x-text="o.t"></span>
+                <small class="block font-normal text-[10px] xs:text-[11px] opacity-75" x-text="o.s ? o.s + ' মিমি' : '—'"></small>
+              </label>
+            </template>
+          </div>
+        </fieldset>
+
+        <label for="holes" class="flex items-center gap-3 text-sm cursor-pointer min-h-[44px]">
+          <input id="holes" type="checkbox" x-model="holes" class="h-5 w-5 accent-[rgb(var(--ink))]">
+          স্ক্রু-ছিদ্রের দাগ দেখান (ওয়ার্কশপের জন্য)
+        </label>
+      </form>
+    </section>
+
+    <!-- Checks + downloads -->
+    <div class="md:col-start-2 grid gap-5 lg:gap-6 min-w-0">
+      <div class="grid gap-5 lg:gap-6 xl:grid-cols-2">
+        <section aria-labelledby="h-chk" class="bg-surface border border-line rounded-md p-4 sm:p-5 min-w-0">
+          <h2 id="h-chk" class="text-xs tracking-[.08em] uppercase text-muted font-semibold mb-3">নিয়ম মিলছে কি না</h2>
+          <ul class="grid gap-2">
+            <template x-for="c in checks" :key="c.t">
+              <li class="grid grid-cols-[22px_minmax(0,1fr)] gap-2 text-sm items-start">
+                <span class="w-[22px] h-[22px] mt-px rounded-full grid place-items-center text-[11px] font-bold text-white"
+                      :class="{ok:'bg-ok',warn:'bg-warn',bad:'bg-bad'}[c.k]" x-text="c.k === 'ok' ? '✓' : '!'"
+                      :aria-label="c.k === 'ok' ? 'ঠিক আছে' : 'সমস্যা'"></span>
+                <span x-text="c.t"></span>
+              </li>
+            </template>
+          </ul>
+        </section>
+
+        <section aria-labelledby="h-dl" class="bg-surface border border-line rounded-md p-4 sm:p-5 min-w-0">
+          <h2 id="h-dl" class="text-xs tracking-[.08em] uppercase text-muted font-semibold mb-3">ডাউনলোড</h2>
+          <div class="grid gap-2.5">
+            <button type="button" @click="dlPdf()" :disabled="!ok" class="btn btn-primary w-full flex items-center justify-between gap-3 min-h-[48px] px-4 rounded font-semibold bg-ink text-bg border border-ink hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
+              PDF, আসল মাপে <small class="font-mono text-[11px] font-normal opacity-80">১০০% স্কেলে প্রিন্ট</small>
+            </button>
+            <div class="grid grid-cols-2 gap-2.5">
+              <button type="button" @click="dlJpg()" :disabled="!ok" class="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-0.5 xs:gap-2 min-h-[48px] px-3 py-2 rounded font-semibold border border-ink hover:bg-line/40 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                JPG <small class="font-mono text-[11px] font-normal opacity-80">৩০০ DPI</small>
+              </button>
+              <button type="button" @click="dlPng()" :disabled="!ok" class="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-0.5 xs:gap-2 min-h-[48px] px-3 py-2 rounded font-semibold border border-ink hover:bg-line/40 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                PNG <small class="font-mono text-[11px] font-normal opacity-80">৩০০ DPI</small>
+              </button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <label for="copies" class="text-sm">A4 শিটে কপি:</label>
+              <select id="copies" x-model.number="copies" class="min-h-[40px] px-2 py-1 bg-bg border border-line rounded text-base focus:outline-none focus:ring-2 focus:ring-accent">
+                <template x-for="n in SPEC[vt].perA4" :key="vt + n"><option :value="n" x-text="toBn(n) + ' কপি'" :selected="n === copies"></option></template>
+              </select>
+            </div>
+            <button type="button" @click="dlA4()" :disabled="!ok" class="w-full flex items-center justify-between gap-3 min-h-[48px] px-4 rounded font-semibold border border-ink hover:bg-line/40 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              A4 প্রিন্ট শিট (PDF) <small class="font-mono text-[11px] font-normal opacity-80">কাটার দাগসহ</small>
+            </button>
+            <p class="text-sm text-muted min-h-[1.4em]" aria-live="polite" x-text="status"></p>
+          </div>
+        </section>
+      </div>
+
+      <section aria-labelledby="h-law" class="bg-surface border border-line rounded-md p-4 sm:p-5 min-w-0">
+        <h2 id="h-law" class="text-xs tracking-[.08em] uppercase text-muted font-semibold mb-3">বিআরটিএ বিজ্ঞপ্তির মূল কথা</h2>
+        <dl class="grid grid-cols-1 sm:grid-cols-[max-content_minmax(0,1fr)] gap-x-5 gap-y-1 sm:gap-y-2 text-sm">
+          <template x-for="r in LAW" :key="r[0]">
+            <div class="contents">
+              <dt class="font-semibold pt-2 sm:pt-0" x-text="r[0]"></dt>
+              <dd class="text-muted" x-text="r[1]"></dd>
+            </div>
+          </template>
+        </dl>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="border-t border-line mt-2">
+    <div class="mx-auto max-w-7xl 3xl:max-w-[1600px] px-4 sm:px-6 lg:px-8 pt-5 pb-28 md:pb-8 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+      <p class="text-xs text-muted max-w-[75ch]">এই টুলটি বিআরটিএ-র সাথে যুক্ত নয় এবং কোনো অফিসিয়াল রেজিস্ট্রেশন প্লেট দেয় না। এটি শুধু ওয়ার্কশপে প্লেট বানানোর জন্য আসল মাপের নকশা তৈরি করে। স্কুটারের মাপ নিয়ে কিছু সংবাদমাধ্যমে ভিন্ন তথ্য এসেছে, তাই প্লেট বানানোর আগে বিআরটিএ-র মূল বিজ্ঞপ্তি দেখে নিন।</p>
+      <p class="text-sm">Made with <span role="img" aria-label="love">❤️</span> by
+        <a href="https://github.com/dynamiclance" target="_blank" rel="noopener noreferrer" class="font-semibold underline decoration-accent decoration-2 underline-offset-4 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm">dynamiclance</a></p>
+    </div>
+  </footer>
+
+  <!-- Mobile action bar -->
+  <div class="md:hidden fixed inset-x-0 bottom-0 z-30 bg-surface/95 backdrop-blur border-t border-line px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom,0px))]">
+    <div class="mx-auto max-w-xl grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+      <button type="button" @click="dlPdf()" :disabled="!ok" class="min-h-[48px] rounded font-semibold bg-ink text-bg disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">PDF ডাউনলোড</button>
+      <button type="button" @click="dlJpg()" :disabled="!ok" class="min-h-[48px] px-5 rounded font-semibold border border-ink disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">JPG</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DPI = 300, MM = DPI / 25.4, MIN_CHAR_MM = 20, MAX_CONDENSE = 0.9;
+const BN = "০১২৩৪৫৬৭৮৯";
+const toBn = s => String(s).replace(/[0-9]/g, d => BN[d]);
+const toEn = s => String(s).replace(/[০-৯]/g, d => BN.indexOf(d));
+const digits = s => toEn(s).replace(/\D/g, "");
+
+function plateApp() {
+  return {
+    SPEC: {
+      moto:    { w: 285, h: 50,  lines: 1, label: "মোটরসাইকেল", perA4: 3 },
+      scooter: { w: 200, h: 100, lines: 2, label: "স্কুটার",    perA4: 2 }
+    },
+    METRO: ["ঢাকা মেট্রো","চট্ট মেট্রো","খুলনা মেট্রো","রাজ মেট্রো","সিলেট মেট্রো","বরিশাল মেট্রো","রংপুর মেট্রো","গাজীপুর মেট্রো"],
+    DIVS: {
+      "ঢাকা বিভাগ":["ঢাকা","ফরিদপুর","গাজীপুর","গোপালগঞ্জ","কিশোরগঞ্জ","মাদারীপুর","মানিকগঞ্জ","মুন্সিগঞ্জ","নারায়ণগঞ্জ","নরসিংদী","রাজবাড়ী","শরীয়তপুর","টাঙ্গাইল"],
+      "চট্টগ্রাম বিভাগ":["চট্টগ্রাম","বান্দরবান","ব্রাহ্মণবাড়িয়া","চাঁদপুর","কুমিল্লা","কক্সবাজার","ফেনী","খাগড়াছড়ি","লক্ষ্মীপুর","নোয়াখালী","রাঙ্গামাটি"],
+      "খুলনা বিভাগ":["খুলনা","বাগেরহাট","চুয়াডাঙ্গা","যশোর","ঝিনাইদহ","কুষ্টিয়া","মাগুরা","মেহেরপুর","নড়াইল","সাতক্ষীরা"],
+      "রাজশাহী বিভাগ":["রাজশাহী","বগুড়া","জয়পুরহাট","নওগাঁ","নাটোর","চাঁপাইনবাবগঞ্জ","পাবনা","সিরাজগঞ্জ"],
+      "রংপুর বিভাগ":["রংপুর","দিনাজপুর","গাইবান্ধা","কুড়িগ্রাম","লালমনিরহাট","নীলফামারী","পঞ্চগড়","ঠাকুরগাঁও"],
+      "বরিশাল বিভাগ":["বরিশাল","বরগুনা","ভোলা","ঝালকাঠি","পটুয়াখালী","পিরোজপুর"],
+      "সিলেট বিভাগ":["সিলেট","হবিগঞ্জ","মৌলভীবাজার","সুনামগঞ্জ"],
+      "ময়মনসিংহ বিভাগ":["ময়মনসিংহ","জামালপুর","নেত্রকোনা","শেরপুর"]
+    },
+    FONTS: [
+      { id: "noto",   v: "Noto Sans Bengali|800",  t: "Noto Sans (মোটা)" },
+      { id: "hind",   v: "Hind Siliguri|700",      t: "Hind Siliguri" },
+      { id: "anek",   v: "Anek Bangla|800",        t: "Anek Bangla" },
+      { id: "baloo",  v: "Baloo Da 2|800",         t: "Baloo Da 2" },
+      { id: "serif",  v: "Noto Serif Bengali|800", t: "Noto Serif" },
+      { id: "tiro",   v: "Tiro Bangla|400",        t: "Tiro Bangla" },
+      { id: "mina",   v: "Mina|700",               t: "Mina" },
+      { id: "atma",   v: "Atma|700",               t: "Atma" },
+      { id: "galada", v: "Galada|400",             t: "Galada (হাতের লেখা)" }
+    ],
+    BIKE_CLS: ["ল","হ"],
+    OTHER_CLS: ["ক","খ","গ","ঘ","চ","ছ","জ","ঝ","ট","ঠ","ড","ঢ","ত","থ","দ","ধ","ন","প","ফ","ব","ভ","ম","য","র","শ","স"],
+    LAW: [
+      ["কাদের জন্য", "সব মোটরসাইকেল ও স্কুটার। পেছনের RFID প্লেটের পাশাপাশি সামনেও প্লেট লাগাতে হবে।"],
+      ["মাপ", "স্কুটার ২০০ × ১০০ মিমি। অন্য মোটরসাইকেল ২৮৫ × ৫০ মিমি, এক লাইনে নম্বর।"],
+      ["অক্ষর", "বাংলা অক্ষর ও সংখ্যা, উচ্চতা কমপক্ষে ২০ মিমি।"],
+      ["রং ও ধাতু", "সাদা জমিনে কালো লেখা। স্টেইনলেস স্টিল বা অ্যালুমিনিয়াম।"],
+      ["নিষেধ", "কোনো স্লোগান, লোগো বা বাড়তি নকশা চলবে না।"],
+      ["কোথায় বানাবেন", "স্থানীয় সাইন বা মেটাল ওয়ার্কশপে, নিজ খরচে। বিআরটিএ-র আলাদা অনুমোদন লাগবে না।"],
+      ["সময়সীমা", "১৫ নভেম্বর ২০২৬। এরপর আইনগত ব্যবস্থা নেওয়া হতে পারে।"]
+    ],
+    toBn, digits,
+
+    // form state
+    vt: "moto", mode: "struct", district: "ঢাকা মেট্রো", cls: "ল", series: "১১", num: "১২২৯",
+    custom: "ঢাকা মেট্রো-ল-১১-১২২৯", font: "Noto Sans Bengali|800", frame: "1.5", holes: false, copies: 3,
+    // derived
+    days: "–", ok: true, checks: [], meta: [], status: "", dlCap: null, lines: [],
+
+    init() {
+      const left = Math.ceil((new Date("2026-11-15T23:59:59+06:00") - Date.now()) / 864e5);
+      this.days = toBn(Math.max(0, left));
+      try {
+        const saved = JSON.parse(localStorage.getItem("fp-inputs") || "null");
+        if (saved) ["vt","mode","district","cls","series","num","custom","font","frame","holes"].forEach(k => { if (saved[k] != null) this[k] = saved[k]; });
+      } catch (e) {}
+      this.copies = this.SPEC[this.vt].perA4;
+      this.$watch("vt", v => { this.copies = Math.min(this.copies, this.SPEC[v].perA4) || this.SPEC[v].perA4; });
+      // Redraw whenever any input changes
+      Alpine.effect(() => {
+        const s = { vt: this.vt, mode: this.mode, district: this.district, cls: this.cls, series: this.series, num: this.num,
+                    custom: this.custom, font: this.font, frame: this.frame, holes: this.holes };
+        this.redraw(s);
+        try { localStorage.setItem("fp-inputs", JSON.stringify(s)); } catch (e) {}
+      });
+      document.fonts.ready.then(() => this.redraw(this.snap()));
+      (async () => { try { this.dlCap = window.claude?.use ? await window.claude.use("downloads") : null; } catch (e) { this.dlCap = null; } })();
+    },
+
+    snap() {
+      return { vt: this.vt, mode: this.mode, district: this.district, cls: this.cls, series: this.series, num: this.num,
+               custom: this.custom, font: this.font, frame: this.frame, holes: this.holes };
+    },
+
+    buildLines(s) {
+      if (s.mode === "custom") {
+        const raw = toBn(s.custom.trim());
+        if (s.vt === "moto") return [raw.replace(/\s*\/\s*/g, "-")];
+        if (raw.includes("/")) return raw.split("/").map(x => x.trim()).slice(0, 2);
+        const m = raw.match(/^(.*?)[-\s]+([০-৯]{2}[-\s]*[০-৯]{3,4})$/);
+        return m ? [m[1], m[2]] : [raw];
+      }
+      const head = `${s.district}-${s.cls}`;
+      const tail = `${toBn(digits(s.series).slice(0, 2))}-${toBn(digits(s.num).slice(0, 4))}`;
+      return s.vt === "moto" ? [`${head}-${tail}`] : [head, tail];
+    },
+
+    async redraw(s) {
+      const [family, weight] = s.font.split("|");
+      try { await document.fonts.load(`${weight} 100px "${family}"`, "ঢাকা মেট্রো-ল-১১-১২২৯"); } catch (e) {}
+      const L = this.buildLines(s);
+      const meas = renderPlate(this.$refs.plate, this.SPEC[s.vt], { family, weight, frame: parseFloat(s.frame), holes: s.holes }, L);
+      this.lines = L;
+      this.evaluate(s, L, meas);
+      const sp = this.SPEC[s.vt];
+      this.meta = [`${sp.w} × ${sp.h} mm`, `${meas.W} × ${meas.H} px @ ${DPI} DPI`, `text ${meas.digitMM.toFixed(1)} mm`,
+                   meas.condense < 0.999 ? `width ${Math.round(meas.condense * 100)}%` : "width 100%", `frame ${s.frame} mm`];
+    },
+
+    evaluate(s, L, meas) {
+      const text = L.join("");
+      const latin = /[A-Za-z]/.test(text);
+      const odd = /[^ঀ-৿\s\-]/.test(text.replace(/[A-Za-z]/g, ""));
+      const empty = !text.trim();
+      const sp = this.SPEC[s.vt];
+      const tall = meas.digitMM >= MIN_CHAR_MM - 0.05;
+      const c = [
+        { k: "ok", t: `মাপ ${toBn(sp.w)} × ${toBn(sp.h)} মিমি (${sp.label})` },
+        { k: "ok", t: "সাদা জমিন, কালো লেখা" },
+        { k: tall ? "ok" : "bad", t: `সংখ্যার উচ্চতা ${toBn(meas.digitMM.toFixed(1))} মিমি (কমপক্ষে ২০ মিমি)` + (tall ? "" : "। বর্ডার পাতলা করুন, স্ক্রু-দাগ বন্ধ করুন বা অন্য ফন্ট নিন") },
+        { k: latin || empty ? "bad" : "ok", t: latin ? "ইংরেজি অক্ষর আছে, বাংলায় লিখুন" : empty ? "নম্বর লিখুন" : "শুধু বাংলা অক্ষর ও সংখ্যা" },
+        { k: odd ? "warn" : "ok", t: odd ? "বাড়তি চিহ্ন আছে, শুধু হাইফেন রাখুন" : "স্লোগান বা নকশা নেই" }
+      ];
+      if (s.vt === "moto") c.push({ k: "ok", t: "এক লাইনে নম্বর" });
+      if (s.mode === "struct" && (digits(s.series).length !== 2 || digits(s.num).length !== 4))
+        c.push({ k: "warn", t: "সিরিজ ২ অঙ্ক ও নম্বর ৪ অঙ্কের হওয়া উচিত" });
+      this.checks = c;
+      this.ok = !empty && !latin && tall;
+    },
+
+    // ---------- downloads ----------
+    fresh() {
+      const s = this.snap(); const [family, weight] = s.font.split("|");
+      const cv = document.createElement("canvas");
+      renderPlate(cv, this.SPEC[s.vt], { family, weight, frame: parseFloat(s.frame), holes: s.holes }, this.lines);
+      return cv;
+    },
+    baseName() {
+      return "front-plate-" + toEn(this.lines.join("-")).replace(/[^\wঀ-৿-]+/g, "").replace(/-+/g, "-").slice(0, 60);
+    },
+    async save(filename, blob) {
+      if (this.dlCap) {
+        try { await this.dlCap.save({ filename, data: blob }); this.status = `${filename} সেভ হয়েছে।`; }
+        catch (e) { this.status = e?.code === "declined" ? "ডাউনলোড বাতিল করা হয়েছে।" : "এখানে ডাউনলোড করা গেল না।"; }
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      this.status = `${filename} ডাউনলোড শুরু হয়েছে।`;
+    },
+    async dlJpg() { this.save(this.baseName() + ".jpg", await jpg300(this.fresh())); },
+    async dlPng() { this.save(this.baseName() + ".png", await png300(this.fresh())); },
+    dlPdf() {
+      const sp = this.SPEC[this.vt];
+      const doc = new jspdf.jsPDF({ unit: "mm", format: [sp.w, sp.h], orientation: sp.w > sp.h ? "landscape" : "portrait" });
+      doc.addImage(this.fresh().toDataURL("image/png"), "PNG", 0, 0, sp.w, sp.h);
+      this.save(this.baseName() + ".pdf", doc.output("blob"));
+    },
+    dlA4() {
+      const sp = this.SPEC[this.vt], n = this.copies;
+      const doc = new jspdf.jsPDF({ unit: "mm", format: "a4" });
+      const img = this.fresh().toDataURL("image/png");
+      const gap = 18, totalH = n * sp.h + (n - 1) * gap, x = (210 - sp.w) / 2;
+      let y = Math.max(20, (297 - totalH) / 2);
+      doc.setFontSize(8); doc.setTextColor(90);
+      doc.text(`${sp.w} x ${sp.h} mm  |  Print at 100% scale (Actual size), do not fit to page`, 105, 12, { align: "center" });
+      // 285 mm is wider than A4 portrait: place motorcycle plates on landscape pages instead
+      if (sp.w > 200) {
+        doc.deletePage(1);
+        for (let i = 0; i < n; i++) {
+          doc.addPage("a4", "landscape");
+          doc.setFontSize(8); doc.setTextColor(90);
+          doc.text(`${sp.w} x ${sp.h} mm  |  Print at 100% scale (Actual size)`, 148.5, 12, { align: "center" });
+          cropPlate(doc, img, (297 - sp.w) / 2, (210 - sp.h) / 2, sp);
+        }
+      } else {
+        for (let i = 0; i < n; i++) { cropPlate(doc, img, x, y, sp); y += sp.h + gap; }
+      }
+      this.save(this.baseName() + "-A4.pdf", doc.output("blob"));
+    }
+  };
+}
+
+function cropPlate(doc, img, x, y, sp) {
+  doc.addImage(img, "PNG", x, y, sp.w, sp.h);
+  doc.setDrawColor(120); doc.setLineWidth(0.2);
+  const L = 5, o = 2, x2 = x + sp.w, y2 = y + sp.h;
+  [[x, y, -1, -1], [x2, y, 1, -1], [x, y2, -1, 1], [x2, y2, 1, 1]].forEach(([cx, cy, sx, sy]) => {
+    doc.line(cx + sx * o, cy, cx + sx * (o + L), cy); doc.line(cx, cy + sy * o, cx, cy + sy * (o + L));
+  });
+}
+
+// Draw the plate at true 300-DPI size; returns measurements in mm
+function renderPlate(cv, sp, o, L) {
+  const W = Math.round(sp.w * MM), H = Math.round(sp.h * MM);
+  cv.width = W; cv.height = H;
+  const c = cv.getContext("2d");
+  c.fillStyle = "#ffffff"; c.fillRect(0, 0, W, H);
+
+  const fr = o.frame * MM;
+  const inset = (o.frame ? o.frame + 0.8 : 0) * MM;
+  if (fr) { c.strokeStyle = "#000"; c.lineWidth = fr; c.strokeRect(fr / 2, fr / 2, W - fr, H - fr); }
+
+  const holeR = 2.5 * MM, holeGap = o.holes ? (holeR * 2 + 3 * MM) : 0;
+  if (o.holes) {
+    c.strokeStyle = "#888"; c.lineWidth = 0.3 * MM; c.setLineDash([0.8 * MM, 0.8 * MM]);
+    [inset + 4 * MM + holeR, W - inset - 4 * MM - holeR].forEach(x => { c.beginPath(); c.arc(x, H / 2, holeR, 0, Math.PI * 2); c.stroke(); });
+    c.setLineDash([]);
+  }
+
+  const padX = inset + 2.5 * MM + holeGap, padY = inset + 3 * MM;
+  const boxW = W - padX * 2, boxH = H - padY * 2;
+  const rowGap = sp.lines > 1 ? 4 * MM : 0;
+  const rowH = (boxH - rowGap * (L.length - 1)) / L.length;
+  const font = px => `${o.weight} ${px}px "${o.family}", "Noto Sans Bengali", sans-serif`;
+  c.fillStyle = "#000"; c.textAlign = "center"; c.textBaseline = "alphabetic";
+
+  // Largest size where every row fits its height, allowing up to 10% horizontal condensing for width
+  const fits = px => { c.font = font(px); return L.every(t => { const m = c.measureText(t || " "); return m.width * MAX_CONDENSE <= boxW && (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) <= rowH; }); };
+  let lo = 10, hi = rowH * 1.6;
+  for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; fits(mid) ? lo = mid : hi = mid; }
+  c.font = font(lo);
+  // One condense factor for all rows so a scooter's two lines match
+  const widest = Math.max(...L.map(t => c.measureText(t || " ").width));
+  const sx = Math.min(1, boxW / widest);
+
+  const totalH = rowH * L.length + rowGap * (L.length - 1);
+  const y0 = (H - totalH) / 2;
+  L.forEach((t, i) => {
+    const m = c.measureText(t || " ");
+    const th = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+    const top = y0 + i * (rowH + rowGap) + (rowH - th) / 2;
+    c.save(); c.translate(W / 2, 0); c.scale(sx, 1); c.fillText(t, 0, top + m.actualBoundingBoxAscent); c.restore();
+  });
+  const dm = c.measureText("০১২৩৪৫৬৭৮৯");
+  return { digitMM: (dm.actualBoundingBoxAscent + dm.actualBoundingBoxDescent) / MM, condense: sx, W, H };
+}
+
+const toBlob = (cv, type, q) => new Promise(r => cv.toBlob(r, type, q));
+async function jpg300(cv) {
+  const u = new Uint8Array(await (await toBlob(cv, "image/jpeg", 0.95)).arrayBuffer());
+  if (u[2] === 0xFF && u[3] === 0xE0 && u[6] === 0x4A) { u[13] = 1; u[14] = 1; u[15] = 44; u[16] = 1; u[17] = 44; } // JFIF 300 DPI
+  return new Blob([u], { type: "image/jpeg" });
+}
+async function png300(cv) {
+  const u = new Uint8Array(await (await toBlob(cv, "image/png")).arrayBuffer());
+  const ppm = Math.round(DPI / 0.0254);
+  const data = new Uint8Array(9), dv = new DataView(data.buffer);
+  dv.setUint32(0, ppm); dv.setUint32(4, ppm); data[8] = 1;
+  const type = new TextEncoder().encode("pHYs");
+  const crcIn = new Uint8Array(13); crcIn.set(type); crcIn.set(data, 4);
+  let crc = ~0; for (const x of crcIn) { crc ^= x; for (let k = 0; k < 8; k++) crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1)); } crc = ~crc >>> 0;
+  const chunk = new Uint8Array(21), cdv = new DataView(chunk.buffer);
+  cdv.setUint32(0, 9); chunk.set(type, 4); chunk.set(data, 8); cdv.setUint32(17, crc);
+  const at = 33, out = new Uint8Array(u.length + 21);
+  out.set(u.slice(0, at)); out.set(chunk, at); out.set(u.slice(at), at + 21);
+  return new Blob([out], { type: "image/png" });
+}
+</script>
+
+</body>
+</html>
